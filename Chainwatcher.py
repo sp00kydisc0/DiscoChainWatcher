@@ -2,11 +2,9 @@ import discord
 from discord.ext import commands, tasks
 import requests
 
-# Replace 'YOUR_DISCORD_BOT_TOKEN' with your Discord bot token
+# Replace these with your actual values
 DISCORD_BOT_TOKEN = "YOUR_DISCORD_BOT_TOKEN"
-# Replace 'YOUR_TORN_API_KEY' with your Torn API key
 TORN_API_KEY = "YOUR_TORN_API_KEY"
-# Replace 'YOUR_CHANNEL_ID' with the ID of the Discord channel where the bot should post messages
 CHANNEL_ID = YOUR_CHANNEL_ID
 
 # Torn API URL
@@ -24,13 +22,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 last_timeout = None
 threshold_announced = set()
 
-
-@bot.event
-async def on_ready():
-    print(f"Bot connected as {bot.user}")
-    check_chain_status.start()
-
-
+# Task loop: Runs every 10 seconds
 @tasks.loop(seconds=10)
 async def check_chain_status():
     global last_timeout, threshold_announced
@@ -40,12 +32,14 @@ async def check_chain_status():
         response = requests.get(TORN_API_URL)
         data = response.json()
 
-        if "error" in data:
-            print(f"API Error: {data['error']['error']}")
-            return
+        # Debugging: Print the entire API response
+        print("API Response:", data)
 
-        timeout = data.get("timeout")
+        # Access the timeout value from the response
+        timeout = data.get("chain", {}).get("timeout")
+
         if timeout is None:
+            # Print debug information if timeout is missing
             print("No timeout value found in API response.")
             return
 
@@ -69,8 +63,20 @@ async def check_chain_status():
         # Update the last timeout
         last_timeout = timeout
 
+        if timeout == 0:    
+            print("Timeout is 0. Skipping message.")
+            return
+
+
     except Exception as e:
         print(f"Error in check_chain_status: {e}")
+
+
+# Event to start the task loop when the bot is ready
+@bot.event
+async def on_ready():
+    print(f"Bot connected as {bot.user}")
+    check_chain_status.start()
 
 
 # Run the bot
